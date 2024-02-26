@@ -1,0 +1,114 @@
+configVersion: 1
+project: sdkapp
+deploy:
+  helmRelease: '[[ project ]]-[[ env ]]'
+  namespace: '[[ env ]]'
+---
+image: sdk-demo
+from: cimg/node:18.18.2-browsers
+docker:
+  WORKDIR: /app
+  USER: circleci
+git:
+  - add: /
+    to: /app
+    owner: circleci
+    group: circleci
+    excludePaths:
+      - '.helm/**'
+      - '.gitlab-ci.yml'
+      - 'werf.yaml'
+    stageDependencies:
+      install:
+        - packages/*/package.json
+        - package.json
+        - yarn.lock
+        - .yarnrc.yml
+      setup:
+        - '**/*'
+shell:
+  install:
+    - set -x
+    - cd /app
+    - sudo -u circleci yarn install --immutable
+  setup:
+    - set -x
+    - cd /app
+    - sudo -u circleci yarn build
+---
+image: sdk-demo-with-nextjs-and-clerk-auth
+from: cimg/node:18.18.2
+docker:
+  WORKDIR: /app
+  USER: circleci
+git:
+  - add: /examples/with-nextjs-and-clerk-auth
+    to: /app
+    owner: circleci
+    group: circleci
+    stageDependencies:
+      install:
+        - package.json
+        - yarn.lock
+      setup:
+        - '**/*'
+  - add: /.yarn
+    to: /app/.yarn
+    owner: circleci
+    group: circleci
+    stageDependencies:
+      install:
+        - '**/*'
+  - add: /.yarnrc.yml
+    to: /app/.yarnrc.yml
+    owner: circleci
+    group: circleci
+    stageDependencies:
+      install:
+        - '**/*'
+shell:
+  install:
+    - set -x
+    - cd /app
+    - sudo -u circleci yarn install --immutable
+  setup:
+    - set -x
+    - cd /app
+    - sudo -u circleci yarn build
+---
+image: nginx
+from: nginx:1.25.1
+docker:
+  WORKDIR: /app
+import:
+  - image: sdk-demo
+    add: /app/packages/sdk-demo/build
+    to: /sdk-demo
+    before: setup
+    owner: app
+    group: app
+  - image: sdk-demo
+    add: /app/packages/sdk-drop-in/dist
+    to: /sdk-drop-in
+    before: setup
+    owner: app
+    group: app
+shell:
+  beforeInstall:
+    - useradd -u 7000 -s /bin/bash app
+    - TZ=Europe/Berlin; ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+  setup:
+    - cp -a /sdk-drop-in/. /app
+    - cp -a /sdk-demo/. /app
+    - rm -rf /sdk-demo
+    - rm -rf /sdk-drop-in
+---
+image: private-registry
+from: verdaccio/verdaccio:5.29.0
+docker:
+  ENV:
+    VERDACCIO_STORAGE_PATH: /verdaccio/storage/data
+git:
+  - add: /e2e/verdaccio-config.yaml
+    to: /verdaccio/conf/config.yaml
+
