@@ -1,5 +1,18 @@
 # @monite/sdk-react
 
+## 3.10.0
+
+### Minor Changes
+
+- 1236949: update tanstack query to v5
+
+### Patch Changes
+
+- bb5d37f: DEV-10434: fix initial loading of products in the receivables
+- ffafb60: DEV-9931: fix bank details loading for onboarding component
+- a06ef76: (DEV-10078): add eslint query plugin
+  - @monite/sdk-api@3.10.0
+
 ## 3.9.0
 
 ### Minor Changes
